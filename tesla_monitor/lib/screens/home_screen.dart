@@ -3,18 +3,66 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tesla_monitor/constants.dart';
 import 'package:tesla_monitor/home_controller.dart';
 
-class HomeScreen extends StatelessWidget {
+import 'components/door_lock.dart';
+import 'components/tesla_bottom_navigation_bar.dart';
+
+class HomeScreen extends StatefulWidget {
   HomeScreen({Key? key}) : super(key: key);
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final HomeController _controller = HomeController();
+  late AnimationController _batteryAnimationController;
+  late Animation<double> _animationBattery;
+
+  void setupBatteryAnimation() {
+    _batteryAnimationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 600),
+    );
+
+    _animationBattery = CurvedAnimation(
+      parent: _batteryAnimationController,
+      // Run half of the interval = 300 ms (total = 600ms)
+      curve: Interval(0.0, 0.5),
+    );
+  }
+
+  @override
+  void initState() {
+    setupBatteryAnimation();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _batteryAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       // Rebuild widget when any changes are applied to the controller
-      animation: _controller,
+      animation: Listenable.merge([_controller, _batteryAnimationController]),
       builder: (context, _) {
         return Scaffold(
+          bottomNavigationBar: TeslaBottomNavigationBar(
+            onTap: (index) {
+              if (index == 1)
+                _batteryAnimationController.forward();
+              else if (_controller.selectedBottomTab == 1 && index != 1)
+                _batteryAnimationController.reverse(from: 0.7);
+              // Use _controller.selectedBottomTab == 1
+              // because after check it change the tab
+              _controller.onBottomNavigationTabChanged(index);
+            },
+            selectedTab: _controller.selectedBottomTab,
+          ),
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -30,7 +78,69 @@ class HomeScreen extends StatelessWidget {
                         width: double.infinity,
                       ),
                     ),
-                    rightDoorLock(constraints),
+                    AnimatedPositioned(
+                      duration: duration500,
+                      right: _controller.selectedBottomTab == 0
+                          ? constraints.maxWidth * 0.05
+                          : constraints.maxWidth / 2,
+                      child: AnimatedOpacity(
+                        duration: duration500,
+                        opacity: _controller.selectedBottomTab == 0 ? 1 : 0,
+                        child: DoorLock(
+                          press: _controller.updateRightDoorLock,
+                          isLock: _controller.isRightDoorLock,
+                        ),
+                      ),
+                    ),
+                    AnimatedPositioned(
+                      duration: duration500,
+                      left: _controller.selectedBottomTab == 0
+                          ? constraints.maxWidth * 0.05
+                          : constraints.maxWidth / 2,
+                      child: AnimatedOpacity(
+                        duration: duration500,
+                        opacity: _controller.selectedBottomTab == 0 ? 1 : 0,
+                        child: DoorLock(
+                          press: _controller.updateLeftDoorLock,
+                          isLock: _controller.isLeftDoorLock,
+                        ),
+                      ),
+                    ),
+                    AnimatedPositioned(
+                      duration: duration500,
+                      top: _controller.selectedBottomTab == 0
+                          ? constraints.maxHeight * 0.13
+                          : constraints.maxHeight / 2,
+                      child: AnimatedOpacity(
+                        duration: duration500,
+                        opacity: _controller.selectedBottomTab == 0 ? 1 : 0,
+                        child: DoorLock(
+                          press: _controller.updateBonnetLock,
+                          isLock: _controller.isBonnetLock,
+                        ),
+                      ),
+                    ),
+                    AnimatedPositioned(
+                      duration: duration500,
+                      bottom: _controller.selectedBottomTab == 0
+                          ? constraints.maxHeight * 0.17
+                          : constraints.maxHeight / 2,
+                      child: AnimatedOpacity(
+                        duration: duration500,
+                        opacity: _controller.selectedBottomTab == 0 ? 1 : 0,
+                        child: DoorLock(
+                          press: _controller.updateTrunkLock,
+                          isLock: _controller.isTrunkLock,
+                        ),
+                      ),
+                    ),
+                    Opacity(
+                      opacity: _animationBattery.value,
+                      child: SvgPicture.asset(
+                        "assets/icons/Battery.svg",
+                        width: constraints.maxWidth * 0.45,
+                      ),
+                    ),
                   ],
                 );
               },
@@ -38,34 +148,6 @@ class HomeScreen extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget rightDoorLock(dynamic constraints) {
-    return Positioned(
-      right: constraints.maxWidth * 0.05,
-      // Animate the lock when clicking
-      child: GestureDetector(
-        onTap: _controller.updateRightDoorLock,
-        child: AnimatedSwitcher(
-          duration: defaultDuration,
-          switchInCurve: Curves.easeInOutBack,
-          // Scale transition when switching image
-          transitionBuilder: (child, animation) => ScaleTransition(
-            scale: animation,
-            child: child,
-          ),
-          child: _controller.isRightDoorLock
-              ? SvgPicture.asset(
-                  "assets/icons/door_lock.svg",
-                  key: ValueKey("lock"),
-                )
-              : SvgPicture.asset(
-                  "assets/icons/door_unlock.svg",
-                  key: ValueKey("unlock"),
-                ),
-        ),
-      ),
     );
   }
 }
