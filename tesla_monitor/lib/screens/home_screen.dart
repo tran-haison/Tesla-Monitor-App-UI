@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tesla_monitor/constants.dart';
 import 'package:tesla_monitor/home_controller.dart';
 
+import 'components/battery_status.dart';
 import 'components/door_lock.dart';
 import 'components/tesla_bottom_navigation_bar.dart';
 
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen>
   final HomeController _controller = HomeController();
   late AnimationController _batteryAnimationController;
   late Animation<double> _animationBattery;
+  late Animation<double> _animationBatteryStatus;
 
   void setupBatteryAnimation() {
     _batteryAnimationController = AnimationController(
@@ -27,8 +29,15 @@ class _HomeScreenState extends State<HomeScreen>
 
     _animationBattery = CurvedAnimation(
       parent: _batteryAnimationController,
-      // Run half of the interval = 300 ms (total = 600ms)
+      // The animation will start at 0 and end at (0.5 * duration) ms
       curve: Interval(0.0, 0.5),
+    );
+
+    _animationBatteryStatus = CurvedAnimation(
+      parent: _batteryAnimationController,
+      // The animation will start at (0.6 * duration) ms
+      // end at (1 * duration) ms
+      curve: Interval(0.6, 1),
     );
   }
 
@@ -69,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen>
                 return Stack(
                   alignment: Alignment.center,
                   children: [
+                    // Car
                     Padding(
                       padding: EdgeInsets.symmetric(
                         vertical: constraints.maxHeight * 0.1,
@@ -78,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen>
                         width: double.infinity,
                       ),
                     ),
+
+                    // Locks
                     AnimatedPositioned(
                       duration: duration500,
                       right: _controller.selectedBottomTab == 0
@@ -134,11 +146,26 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                     ),
+
+                    // Battery
                     Opacity(
                       opacity: _animationBattery.value,
                       child: SvgPicture.asset(
                         "assets/icons/Battery.svg",
                         width: constraints.maxWidth * 0.45,
+                      ),
+                    ),
+
+                    // Battery status
+                    Positioned(
+                      top: 50 * (1 - _animationBatteryStatus.value),
+                      height: constraints.maxHeight,
+                      width: constraints.maxWidth,
+                      child: Opacity(
+                        opacity: _animationBatteryStatus.value,
+                        child: BatteryStatus(
+                          constraints: constraints,
+                        ),
                       ),
                     ),
                   ],
